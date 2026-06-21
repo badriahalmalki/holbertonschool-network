@@ -1,0 +1,95 @@
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         YOUR BROWSER                                    │
+│                   types https://www.google.com                          │
+└──────────────────────────────┬──────────────────────────────────────────┘
+                               │
+                               │ 1. DNS RESOLUTION
+                               ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                          DNS LOOKUP CHAIN                               │
+│                                                                         │
+│   Browser Cache → OS Cache → Recursive Resolver                        │
+│       → Root Nameserver → .com TLD Nameserver                          │
+│           → google.com Authoritative Nameserver                        │
+│                                                                         │
+│              Returns IP address: 142.250.80.46                         │
+└──────────────────────────────┬──────────────────────────────────────────┘
+                               │
+                               │ 2. TCP/IP — Connect to IP:443
+                               ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                     TCP 3-WAY HANDSHAKE (port 443)                      │
+│                                                                         │
+│         Browser ──── SYN ────────────────────────► Server              │
+│         Browser ◄─── SYN-ACK ────────────────────── Server             │
+│         Browser ──── ACK ────────────────────────► Server              │
+└──────────────────────────────┬──────────────────────────────────────────┘
+                               │
+                               │ 3. HTTPS/SSL — Encrypted tunnel
+                               ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                       TLS HANDSHAKE (HTTPS)                             │
+│                                                                         │
+│   Client Hello → Server Hello + SSL Certificate                        │
+│   Certificate verified by trusted CA (e.g. DigiCert)                  │
+│   Session key exchanged → 🔒 All traffic now encrypted                 │
+└──────────────────────────────┬──────────────────────────────────────────┘
+                               │
+                               │ Encrypted request travels over internet
+                               ▼
+              ╔════════════════════════════════════╗
+              ║       GOOGLE'S INFRASTRUCTURE      ║
+              ╠════════════════════════════════════╣
+              ║                                    ║
+              ║  4. ┌──────────────────────────┐   ║
+              ║     │        FIREWALL           │   ║
+              ║     │  Inspects incoming packets│   ║
+              ║     │  Blocks malicious traffic │   ║
+              ║     │  Allows port 443 traffic  │   ║
+              ║     └────────────┬─────────────┘   ║
+              ║                  │                  ║
+              ║  5.              ▼                  ║
+              ║     ┌──────────────────────────┐   ║
+              ║     │      LOAD BALANCER        │   ║
+              ║     │  Distributes traffic      │   ║
+              ║     │  across server pool       │   ║
+              ║     │  (round-robin / least     │   ║
+              ║     │   connections / hashing)  │   ║
+              ║     └──────┬───────────┬────────┘   ║
+              ║            │           │             ║
+              ║  6.        ▼           ▼             ║
+              ║     ┌──────────┐ ┌──────────┐       ║
+              ║     │  WEB     │ │  WEB     │  ...  ║
+              ║     │ SERVER 1 │ │ SERVER 2 │       ║
+              ║     │ (Nginx / │ │          │       ║
+              ║     │  Apache) │ │          │       ║
+              ║     └────┬─────┘ └──────────┘       ║
+              ║          │ Forwards dynamic request  ║
+              ║  7.      ▼                           ║
+              ║     ┌──────────────────────────┐    ║
+              ║     │    APPLICATION SERVER     │    ║
+              ║     │  Runs business logic      │    ║
+              ║     │  Processes search query   │    ║
+              ║     │  Invokes ranking, NLP,    │    ║
+              ║     │  personalization services │    ║
+              ║     └────────────┬─────────────┘    ║
+              ║                  │ Queries data      ║
+              ║  8.              ▼                   ║
+              ║     ┌──────────────────────────┐    ║
+              ║     │        DATABASE           │    ║
+              ║     │  Web index (search data)  │    ║
+              ║     │  Cache (Redis/Memcached)  │    ║
+              ║     │  User data & preferences  │    ║
+              ║     └──────────────────────────┘    ║
+              ║                  │                   ║
+              ╚══════════════════╪═══════════════════╝
+                                 │
+                                 │ 🔒 Encrypted HTML response
+                                 ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         YOUR BROWSER                                    │
+│            Decrypts response → Renders HTML/CSS/JS                     │
+│                    → Displays Google homepage                           │
+└─────────────────────────────────────────────────────────────────────────┘
+```

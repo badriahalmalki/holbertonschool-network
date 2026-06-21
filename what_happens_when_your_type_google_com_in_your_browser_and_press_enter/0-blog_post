@@ -1,0 +1,219 @@
+# What Happens When You Type https://www.google.com in Your Browser and Press Enter?
+
+It seems like a simple action — you type a URL and a webpage appears in under a second. But beneath that instant response lies a remarkable chain of events involving DNS resolution, TCP connections, encrypted handshakes, load balancing, and multiple layers of servers. Let's walk through every step.
+
+---
+
+## 1. DNS Request — Translating a Name to an Address
+
+Your browser doesn't know where "www.google.com" lives — it needs an IP address. This is where the **Domain Name System (DNS)** comes in, acting like the internet's phone book.
+
+Here's the lookup chain:
+
+1. **Browser cache** — The browser first checks if it already resolved this domain recently.
+2. **OS cache** — If not cached, it asks the operating system, which checks its own cache and the local `/etc/hosts` file.
+3. **Recursive resolver** — If still unresolved, the OS sends a query to a DNS resolver (usually provided by your ISP or a public one like 8.8.8.8).
+4. **Root nameserver** → **TLD nameserver (.com)** → **Authoritative nameserver (google.com)** — The resolver works down the DNS hierarchy until it gets the answer.
+
+The result: an IP address like `142.250.80.46` is returned to your browser.
+
+---
+
+## 2. TCP/IP — Establishing the Connection
+
+With the IP address in hand, your browser initiates a **TCP (Transmission Control Protocol)** connection to Google's server on port 443 (the default for HTTPS).
+
+TCP uses a **three-way handshake** to establish a reliable connection:
+
+1. **SYN** — Your browser sends a synchronize packet to the server.
+2. **SYN-ACK** — The server acknowledges and responds.
+3. **ACK** — Your browser confirms, and the connection is established.
+
+This happens on top of **IP (Internet Protocol)**, which handles routing packets across networks from your machine to Google's servers, potentially hopping through dozens of routers along the way.
+
+---
+
+## 3. Firewall — The Security Checkpoint
+
+Before packets reach Google's servers (and as they leave your machine), they pass through **firewalls** — systems that inspect network traffic and enforce security rules.
+
+- Your **local firewall** (on your OS or router) checks outgoing traffic.
+- Google's **network firewalls** inspect incoming packets, blocking malicious traffic, DDoS attempts, and unauthorized access while allowing legitimate requests on port 443 to pass through.
+
+Firewalls operate at multiple layers, from simple port-based rules to deep packet inspection.
+
+---
+
+## 4. HTTPS/SSL — Encrypting the Communication
+
+Since you typed `https://`, your browser and the server must establish an **encrypted channel** using **TLS (Transport Layer Security)**, the modern successor to SSL.
+
+The **TLS handshake** proceeds as follows:
+
+1. **Client Hello** — Your browser tells the server which TLS version and cipher suites it supports, and sends a random value.
+2. **Server Hello** — The server picks a cipher suite and sends its **SSL certificate** (issued by a trusted Certificate Authority like DigiCert).
+3. **Certificate verification** — Your browser verifies the certificate is valid, not expired, and signed by a trusted CA.
+4. **Key exchange** — Both sides use asymmetric cryptography to securely agree on a **session key**.
+5. **Encrypted session begins** — All subsequent communication is encrypted with the symmetric session key.
+
+This ensures no one can eavesdrop on or tamper with the data in transit.
+
+---
+
+## 5. Load Balancer — Distributing the Traffic
+
+Google receives billions of requests per day. A single server can't handle that — so your request first hits a **load balancer**.
+
+The load balancer:
+- Acts as the entry point, receiving your request on Google's IP address.
+- Distributes traffic across thousands of backend servers using algorithms like **round-robin**, **least connections**, or **IP hashing**.
+- Performs **health checks** to avoid routing traffic to servers that are down.
+- Can also terminate TLS, handling decryption before passing the request to internal servers.
+
+This ensures high availability and prevents any single server from becoming a bottleneck.
+
+---
+
+## 6. Web Server — Handling the HTTP Request
+
+Your request arrives at a **web server** (Google uses its own infrastructure, though common open-source examples include Nginx and Apache).
+
+The web server:
+- Parses the HTTP request headers, method (GET), and path (`/`).
+- Serves **static assets** directly if applicable (HTML, CSS, JS, images).
+- For dynamic content, forwards the request to an **application server**.
+
+---
+
+## 7. Application Server — Processing the Logic
+
+For a Google search, significant logic is needed — this is where the **application server** takes over.
+
+The application server:
+- Runs the business logic of the application (e.g., processing your search query).
+- Invokes internal services — spell check, autocomplete, ranking algorithms, personalization.
+- Constructs a response, often by querying one or more databases or distributed caches.
+
+Google's application layer is highly distributed, involving many microservices communicating internally.
+
+---
+
+## 8. Database — Fetching and Storing Data
+
+To generate search results, the application server queries Google's **data stores**.
+
+- **Google's web index** — A massive distributed database containing crawled and indexed web pages, queried to find relevant results for your search.
+- **Caches** (like Memcached or Redis) — Frequently accessed data is served from in-memory caches to reduce database load and latency.
+- **User data** — If you're signed in, your preferences and search history may be retrieved from user databases.
+
+The results are assembled, ranked, and returned to the application server.
+
+---
+
+## Putting It All Together — The Full Request Flow Diagram
+
+The diagram below illustrates the complete journey of your request:
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         YOUR BROWSER                                    │
+│                   types https://www.google.com                          │
+└──────────────────────────────┬──────────────────────────────────────────┘
+                               │
+                               │ 1. DNS RESOLUTION
+                               ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                          DNS LOOKUP CHAIN                               │
+│                                                                         │
+│   Browser Cache → OS Cache → Recursive Resolver                        │
+│       → Root Nameserver → .com TLD Nameserver                          │
+│           → google.com Authoritative Nameserver                        │
+│                                                                         │
+│              Returns IP address: 142.250.80.46                         │
+└──────────────────────────────┬──────────────────────────────────────────┘
+                               │
+                               │ 2. TCP/IP — Connect to IP:443
+                               ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                     TCP 3-WAY HANDSHAKE (port 443)                      │
+│                                                                         │
+│         Browser ──── SYN ────────────────────────► Server              │
+│         Browser ◄─── SYN-ACK ────────────────────── Server             │
+│         Browser ──── ACK ────────────────────────► Server              │
+└──────────────────────────────┬──────────────────────────────────────────┘
+                               │
+                               │ 3. HTTPS/SSL — Encrypted tunnel
+                               ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                       TLS HANDSHAKE (HTTPS)                             │
+│                                                                         │
+│   Client Hello → Server Hello + SSL Certificate                        │
+│   Certificate verified by trusted CA (e.g. DigiCert)                  │
+│   Session key exchanged → 🔒 All traffic now encrypted                 │
+└──────────────────────────────┬──────────────────────────────────────────┘
+                               │
+                               │ Encrypted request travels over internet
+                               ▼
+              ╔════════════════════════════════════╗
+              ║       GOOGLE'S INFRASTRUCTURE      ║
+              ╠════════════════════════════════════╣
+              ║                                    ║
+              ║  4. ┌──────────────────────────┐   ║
+              ║     │        FIREWALL           │   ║
+              ║     │  Inspects incoming packets│   ║
+              ║     │  Blocks malicious traffic │   ║
+              ║     │  Allows port 443 traffic  │   ║
+              ║     └────────────┬─────────────┘   ║
+              ║                  │                  ║
+              ║  5.              ▼                  ║
+              ║     ┌──────────────────────────┐   ║
+              ║     │      LOAD BALANCER        │   ║
+              ║     │  Distributes traffic      │   ║
+              ║     │  across server pool       │   ║
+              ║     │  (round-robin / least     │   ║
+              ║     │   connections / hashing)  │   ║
+              ║     └──────┬───────────┬────────┘   ║
+              ║            │           │             ║
+              ║  6.        ▼           ▼             ║
+              ║     ┌──────────┐ ┌──────────┐       ║
+              ║     │  WEB     │ │  WEB     │  ...  ║
+              ║     │ SERVER 1 │ │ SERVER 2 │       ║
+              ║     │ (Nginx / │ │          │       ║
+              ║     │  Apache) │ │          │       ║
+              ║     └────┬─────┘ └──────────┘       ║
+              ║          │ Forwards dynamic request  ║
+              ║  7.      ▼                           ║
+              ║     ┌──────────────────────────┐    ║
+              ║     │    APPLICATION SERVER     │    ║
+              ║     │  Runs business logic      │    ║
+              ║     │  Processes search query   │    ║
+              ║     │  Invokes ranking, NLP,    │    ║
+              ║     │  personalization services │    ║
+              ║     └────────────┬─────────────┘    ║
+              ║                  │ Queries data      ║
+              ║  8.              ▼                   ║
+              ║     ┌──────────────────────────┐    ║
+              ║     │        DATABASE           │    ║
+              ║     │  Web index (search data)  │    ║
+              ║     │  Cache (Redis/Memcached)  │    ║
+              ║     │  User data & preferences  │    ║
+              ║     └──────────────────────────┘    ║
+              ║                  │                   ║
+              ╚══════════════════╪═══════════════════╝
+                                 │
+                                 │ 🔒 Encrypted HTML response
+                                 ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         YOUR BROWSER                                    │
+│            Decrypts response → Renders HTML/CSS/JS                     │
+│                    → Displays Google homepage                           │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+The response travels back through the application server → web server → load balancer → the internet → your browser. Your browser receives the HTML, renders the DOM, loads CSS and JavaScript, and displays the Google homepage — all in a fraction of a second.
+
+What looks like a trivial keystroke is actually a beautifully orchestrated symphony of protocols, encryption, routing, and distributed computing working in perfect unison.
+
+---
+
+*Published as part of the Holberton School Network project.*
